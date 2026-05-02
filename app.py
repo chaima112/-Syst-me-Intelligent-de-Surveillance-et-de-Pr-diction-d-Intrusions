@@ -6,13 +6,15 @@ import threading
 import queue
 import time
 import os
-#import winsound 
+import winsound 
 from datetime import datetime
 
 app = Flask(__name__)
 
+
 if not os.path.exists('static/captures'):
     os.makedirs('static/captures')
+
 
 model = YOLO('best.pt')
 CONF_THRESH = 0.5
@@ -24,8 +26,32 @@ movement_detected = False
 total_detections = 0
 last_detection_time = "-"
 lock = threading.Lock()
+def fetch_from_azure():
+    try:
+        blob_service_client = BlobServiceClient.from_connection_string(AZURE_CONNECTION_STRING)
+        container_client = blob_service_client.get_container_client(CONTAINER_NAME)
+        
+        known_blobs = set()
+        
+        while True:
+            blobs = list(container_client.list_blobs())
+            for blob in blobs:
+                if blob.name not in known_blobs:
+                    blob_client = container_client.get_blob_client(blob.name)
+                    downloader = blob_client.download_blob()
+                    img_data = downloader.readall()
+                    
+                    nparr = np.frombuffer(img_data, np.uint8)
+                    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    
+                    if img is not None and not frame_queue.full():
+                        frame_queue.put(img)
+                        known_blobs.add(blob.name)
+            
+            time.sleep(2)
+    except Exception as e:
+        print(f"Azure Storage Error: {e}")
 
-# 3. دالة معالجة الصور (القلب النابض للمشروع)
 def process_frames():
     global latest_annotated, latest_score, movement_detected, total_detections, last_detection_time
     
@@ -34,12 +60,12 @@ def process_frames():
             img = frame_queue.get()
             results = model(img, conf=CONF_THRESH)
             
-            # البحث عن الأشخاص فقط
+            
             found_persons = [box for box in results[0].boxes if model.names[int(box.cls[0])] == 'person']
             
             with lock:
                 if len(found_persons) > 0:
-                    # إذا اكتشف شخص جديد (لم يكن موجوداً في الإطار السابق)
+                    
                     if not movement_detected:
                         total_detections += 1
                         movement_detected = True
@@ -53,25 +79,23 @@ def process_frames():
                     annotated_plot = results[0].plot()
                     
                     cv2.imwrite(save_path, annotated_plot)
-                    cv2.imwrite('static/captures/latest.jpg', annotated_plot) # للعرض السريع
-                    
-                    # تنبيه صوتي
-                    #winsound.Beep(1000, 200)
+                    cv2.imwrite('static/captures/latest.jpg', annotated_plot) 
+                  
+                    winsound.Beep(1000, 200)
                 else:
                     movement_detected = False
                     latest_score = 0
                 
-                # تحويل الصورة الحالية لـ Stream
+                
                 annotated_img = results[0].plot()
                 _, buffer = cv2.imencode('.jpg', annotated_img)
                 latest_annotated = buffer.tobytes()
                 
         time.sleep(0.01)
 
-# تشغيل المعالجة في الخلفية
 threading.Thread(target=process_frames, daemon=True).start()
 
-# 4. الـ Routes (المسارات)
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -109,5 +133,5 @@ def get_status():
         })
 
 if __name__ == '__main__':
-    # أعملي host='0.0.0.0' باش تجمي تحليه من تليفونك زادة
+    
     app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
