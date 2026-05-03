@@ -3,7 +3,7 @@ import requests
 import time
 
 # الـ URL متاع الـ Flask اللي خدام عندك توة
-url = "http://127.0.0.1:5000/upload"
+url = "https://your-function-name.azurewebsites.net/api/upload"
 
 cap = cv2.VideoCapture(0) # حل كاميرا الـ PC
 
