@@ -6,7 +6,7 @@ import threading
 import queue
 import time
 import os
-import winsound 
+#import winsound 
 from datetime import datetime
 
 app = Flask(__name__)
@@ -81,7 +81,7 @@ def process_frames():
                     cv2.imwrite(save_path, annotated_plot)
                     cv2.imwrite('static/captures/latest.jpg', annotated_plot) 
                   
-                    winsound.Beep(1000, 200)
+                    #winsound.Beep(1000, 200)
                 else:
                     movement_detected = False
                     latest_score = 0
