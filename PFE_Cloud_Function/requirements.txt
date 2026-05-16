@@ -1,0 +1,6 @@
+azure-functions
+azure-storage-blob
+requests
+opencv-python
+numpy
+ultralytics
