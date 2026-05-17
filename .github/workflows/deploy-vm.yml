@@ -1,0 +1,18 @@
+name: Deploy VM
+on:
+  push:
+    paths:
+      - 'app.py'
+      - 'best.pt'
+      - 'requirements.txt'
+      - 'templates/**'
+      - '.github/workflows/deploy-vm.yml'
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Copy files to VM
+        run: |
+          scp -o StrictHostKeyChecking=no -r ./ app.py best.pt requirements.txt templates/ user@40.76.119.232:/home/user/flask_app
+          ssh user@40.76.119.232 'cd /home/user/flask_app && pip install -r requirements.txt && sudo systemctl restart flask'
