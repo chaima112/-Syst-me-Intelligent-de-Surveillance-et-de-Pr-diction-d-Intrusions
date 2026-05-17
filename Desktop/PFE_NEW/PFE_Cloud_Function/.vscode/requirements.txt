@@ -4,6 +4,4 @@
 
 azure-functions
 azure-storage-blob
-opencv-python
-numpy
-ultralytics
+requests
