@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Forteresse Virtuelle - Monitoring Pro</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --accent-blue: #58a6ff;
+            --accent-green: #238636;
+            --accent-red: #da3633;
+            --text-main: #c9d1d9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .navbar {
+            background: var(--card-bg);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            flex-grow: 1;
+        }
+
+        .video-section {
+            background: #000;
+            border-radius: 15px;
+            border: 2px solid #30363d;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-feed {
+            width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .status-badge {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .safe { background: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid #238636; }
+        .danger { background: rgba(218, 54, 51, 0.2); color: #f85149; border: 1px solid #da3633; animation: pulse 1s infinite; }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .stat-item { background: #0d1117; padding: 10px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: var(--accent-blue); display: block; }
+
+        .capture-preview {
+            width: 100%;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid #444;
+            transition: transform 0.3s;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(218, 54, 51, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(218, 54, 51, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(218, 54, 51, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div style="font-size: 1.2rem; font-weight: bold;">
+            <i class="fas fa-shield-halved" style="color: var(--accent-blue);"></i> FORTERESSE VIRTUELLE
+        </div>
+        <div id="clock" style="color: #8b949e;"></div>
+    </nav>
+
+    <div class="main-container">
+        <div class="video-section">
+            <img src="/video_feed" class="video-feed">
+        </div>
+
+        <div class="sidebar">
+            <div class="card">
+                <h3><i class="fas fa-tower-broadcast"></i> État du Système</h3>
+                <div id="status-badge" class="status-badge safe">
+                    <i class="fas fa-check-circle"></i> <span id="status-text">SÉCURISÉ</span>
+                </div>
+                
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <span style="font-size: 0.8rem; color: #8b949e;">DÉTECTIONS</span>
+                        <span id="total-count" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span style="font-size: 0.8rem; color: #8b949e;">CONFIANCE</span>
+                        <span id="conf-score" class="stat-value">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3><i class="fas fa-clock-rotate-left"></i> Dernière Activité</h3>
+                <p id="last-time" style="font-family: monospace; color: var(--accent-blue);">-</p>
+            </div>
+
+            <div class="card">
+                <h3><i class="fas fa-camera"></i> Dernière Capture</h3>
+                <img id="last-capture" src="" class="capture-preview" style="display: none;">
+                <p id="no-capture" style="color: #484f58; font-style: italic;">Aucune capture disponible</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateClock() {
+            document.getElementById('clock').innerText = new Date().toLocaleString();
+        }
+        setInterval(updateClock, 1000);
+
+        setInterval(function() {
+            fetch('/get_status').then(r => r.json()).then(data => {
+                document.getElementById('total-count').innerText = data.total;
+                document.getElementById('last-time').innerText = data.time;
+                document.getElementById('conf-score').innerText = data.score + '%';
+
+                const badge = document.getElementById('status-badge');
+                const stext = document.getElementById('status-text');
+                const captureImg = document.getElementById('last-capture');
+                const noCap = document.getElementById('no-capture');
+
+                if(data.movement) {
+                    badge.className = "status-badge danger";
+                    stext.innerText = "INTRUSION DÉTECTÉE";
+                    captureImg.src = "/static/captures/latest.jpg?t=" + new Date().getTime();
+                    captureImg.style.display = "block";
+                    noCap.style.display = "none";
+                } else {
+                    badge.className = "status-badge safe";
+                    stext.innerText = "SÉCURISÉ";
+                }
+            });
+        }, 500);
+    </script>
+</body>
+</html>
